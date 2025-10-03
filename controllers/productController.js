@@ -3,8 +3,8 @@ const { sql, poolPromise } = require('../db');
 // Створення продукту (тільки фермер)
 async function createProduct(req, res) {
   try {
-    const { ProductName, Description, Price, StockQuantity, CategoryId, Images } = req.body;
-    const farmerId = req.user.UserId; // хто залогінився
+    const { ProductName, Description, Price, StockQuantity, CategoryId } = req.body;
+    const farmerId = req.user.UserId;
 
     const pool = await poolPromise;
     const result = await pool.request()
@@ -22,12 +22,12 @@ async function createProduct(req, res) {
 
     const productId = result.recordset[0].ProductId;
 
-    // Додаємо картинки, якщо передали
-    if (Images && Images.length > 0) {
-      for (const url of Images) {
+    // якщо були картинки
+    if (req.files?.images) {
+      for (const file of req.files.images) {
         await pool.request()
           .input('ProductId', sql.Int, productId)
-          .input('ImageUrl', sql.NVarChar, url)
+          .input('ImageUrl', sql.NVarChar, '/uploads/' + file.filename)
           .query('INSERT INTO ProductImages (ProductId, ImageUrl) VALUES (@ProductId, @ImageUrl)');
       }
     }
@@ -38,10 +38,10 @@ async function createProduct(req, res) {
   }
 }
 
-// Отримати всі продукти з опціями фільтрації
+// Отримати всі продукти
 async function getProducts(req, res) {
   try {
-    const { search, category } = req.query; // query params
+    const { search, category } = req.query;
     let query = `
       SELECT p.ProductId, p.ProductName, p.Description, p.Price, p.StockQuantity, p.CreatedAt,
              u.UserName AS FarmerName, c.CategoryName
@@ -56,6 +56,16 @@ async function getProducts(req, res) {
 
     const pool = await poolPromise;
     const result = await pool.request().query(query);
+
+    // додаємо картинки до кожного продукту
+    for (let product of result.recordset) {
+      const images = await pool.request()
+        .input('ProductId', sql.Int, product.ProductId)
+        .query('SELECT ImageUrl FROM ProductImages WHERE ProductId = @ProductId');
+
+      product.Images = images.recordset.map(img => img.ImageUrl);
+    }
+
     res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -82,7 +92,6 @@ async function getProductById(req, res) {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    // картинки
     const images = await pool.request()
       .input('ProductId', sql.Int, id)
       .query('SELECT ImageUrl FROM ProductImages WHERE ProductId = @ProductId');
@@ -96,38 +105,69 @@ async function getProductById(req, res) {
   }
 }
 
-// Оновити продукт (тільки фермер, свій продукт)
+// Оновити продукт
 async function updateProduct(req, res) {
   try {
     const { id } = req.params;
-    const { ProductName, Description, Price, StockQuantity, CategoryId } = req.body;
     const farmerId = req.user.UserId;
 
-    const pool = await poolPromise;
-    const result = await pool.request()
-      .input('ProductId', sql.Int, id)
-      .input('FarmerId', sql.Int, farmerId)
-      .input('ProductName', sql.NVarChar, ProductName)
-      .input('Description', sql.NVarChar, Description)
-      .input('Price', sql.Decimal(10, 2), Price)
-      .input('StockQuantity', sql.Int, StockQuantity)
-      .input('CategoryId', sql.Int, CategoryId)
-      .query(`
-        UPDATE Products
-        SET ProductName = @ProductName,
-            Description = @Description,
-            Price = @Price,
-            StockQuantity = @StockQuantity,
-            CategoryId = @CategoryId
-        WHERE ProductId = @ProductId AND FarmerId = @FarmerId
-      `);
+    const { ProductName, Description, Price, StockQuantity, CategoryId } = req.body;
 
-    if (result.rowsAffected[0] === 0) {
-      return res.status(403).json({ message: 'You can only update your own products' });
+    const pool = await poolPromise;
+    let updateFields = [];
+    let request = pool.request();
+
+    request.input('ProductId', sql.Int, id);
+    request.input('FarmerId', sql.Int, farmerId);
+
+    if (ProductName) {
+      updateFields.push("ProductName = @ProductName");
+      request.input('ProductName', sql.NVarChar, ProductName);
+    }
+    if (Description) {
+      updateFields.push("Description = @Description");
+      request.input('Description', sql.NVarChar, Description);
+    }
+    if (Price) {
+      updateFields.push("Price = @Price");
+      request.input('Price', sql.Decimal(10,2), parseFloat(Price));
+    }
+    if (StockQuantity) {
+      updateFields.push("StockQuantity = @StockQuantity");
+      request.input('StockQuantity', sql.Int, parseInt(StockQuantity));
+    }
+    if (CategoryId) {
+      updateFields.push("CategoryId = @CategoryId");
+      request.input('CategoryId', sql.Int, parseInt(CategoryId));
+    }
+
+    if (updateFields.length === 0 && !req.files?.images) {
+      return res.status(400).json({ message: "No fields to update" });
+    }
+
+    // текстові поля
+    if (updateFields.length > 0) {
+      const query = `
+        UPDATE Products
+        SET ${updateFields.join(", ")}
+        WHERE ProductId = @ProductId AND FarmerId = @FarmerId
+      `;
+      await request.query(query);
+    }
+
+    // нові картинки
+    if (req.files?.images) {
+      for (const file of req.files.images) {
+        await pool.request()
+          .input('ProductId', sql.Int, id)
+          .input('ImageUrl', sql.NVarChar, '/uploads/' + file.filename)
+          .query('INSERT INTO ProductImages (ProductId, ImageUrl) VALUES (@ProductId, @ImageUrl)');
+      }
     }
 
     res.json({ message: 'Product updated successfully' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: err.message });
   }
 }

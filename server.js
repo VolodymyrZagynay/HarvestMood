@@ -28,11 +28,32 @@ app.put('/api/users/:id', authController.updateUser);
 app.delete('/api/users/:id', authController.deleteUser);
 
 // Products
-app.post('/api/products', authenticateToken, authorizeRole('Farmer'), productController.createProduct);
+app.post(
+  '/api/products',
+  authenticateToken,
+  authorizeRole('Farmer'),
+  upload,
+  productController.createProduct
+);
+
 app.get('/api/products', productController.getProducts);
 app.get('/api/products/:id', productController.getProductById);
-app.put('/api/products/:id', authenticateToken, authorizeRole('Farmer'), productController.updateProduct);
-app.delete('/api/products/:id', authenticateToken, authorizeRole('Farmer'), productController.deleteProduct);
+
+app.put(
+  '/api/products/:id',
+  authenticateToken,
+  authorizeRole('Farmer'),
+  upload,
+  productController.updateProduct
+);
+
+app.delete(
+  '/api/products/:id',
+  authenticateToken,
+  authorizeRole('Farmer'),
+  productController.deleteProduct
+);
+
 
 // Orders
 app.post('/api/orders', authenticateToken, orderController.createOrder);

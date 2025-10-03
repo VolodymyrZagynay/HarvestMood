@@ -2,14 +2,16 @@ const multer = require('multer');
 const path = require('path');
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/'); // куди зберігати картинки
   },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname)); // унікальне ім’я
   }
 });
 
-const upload = multer({ storage });
+const upload = multer({ storage }).fields([
+  { name: 'images', maxCount: 5 } // максимум 5 картинок
+]);
 
 module.exports = { upload };
