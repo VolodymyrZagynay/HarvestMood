@@ -1,4 +1,3 @@
-// controllers/orderController.js
 const { sql, poolPromise } = require('../db');
 
 async function createOrder(req, res) {
@@ -12,7 +11,6 @@ async function createOrder(req, res) {
 
     const pool = await poolPromise;
 
-    // Перевіряємо, чи існують продукти і підраховуємо total
     let total = 0;
     for (const item of items) {
       const product = await pool.request()
@@ -31,7 +29,6 @@ async function createOrder(req, res) {
       total += Price * item.Quantity;
     }
 
-    // Створюємо замовлення
     const orderResult = await pool.request()
       .input('CustomerId', sql.Int, req.user.UserId)
       .input('TotalAmount', sql.Decimal(10,2), total)
@@ -39,7 +36,6 @@ async function createOrder(req, res) {
 
     const orderId = orderResult.recordset[0].OrderId;
 
-    // Додаємо елементи замовлення і зменшуємо кількість товарів
     for (const item of items) {
       const product = await pool.request()
         .input('ProductId', sql.Int, item.ProductId)

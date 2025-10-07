@@ -1,14 +1,12 @@
-// controllers/reviewController.js
 const { sql, poolPromise } = require('../db');
 
 async function createReview(req, res) {
   try {
     const { OrderItemId, Rating, Comment } = req.body;
-    const userId = req.user.UserId; // хто залишає відгук
+    const userId = req.user.UserId;
 
     const pool = await poolPromise;
 
-    // Перевіряємо, чи існує OrderItem і чи він належить цьому юзеру
     const orderItem = await pool.request()
       .input('OrderItemId', sql.Int, OrderItemId)
       .query(`
@@ -28,7 +26,6 @@ async function createReview(req, res) {
       return res.status(403).json({ message: "You can review only your own purchases" });
     }
 
-    // Перевіряємо, чи вже є відгук (бо в БД стоїть UNIQUE)
     const existing = await pool.request()
       .input('OrderItemId', sql.Int, OrderItemId)
       .query(`SELECT * FROM Reviews WHERE OrderItemId = @OrderItemId`);
@@ -37,7 +34,6 @@ async function createReview(req, res) {
       return res.status(400).json({ message: "Review already exists for this item" });
     }
 
-    // Створюємо відгук
     await pool.request()
       .input('OrderItemId', sql.Int, OrderItemId)
       .input('Rating', sql.Int, Rating)

@@ -74,6 +74,17 @@ CREATE TABLE Reviews (
     FOREIGN KEY (OrderItemId) REFERENCES OrderItems(OrderItemId)
 );
 
+--Карти
+CREATE TABLE CartItems (
+    CartItemId INT IDENTITY(1,1) PRIMARY KEY,
+    UserId INT NOT NULL,
+    ProductId INT NOT NULL,
+    Quantity INT NOT NULL CHECK (Quantity > 0),
+    AddedAt DATETIME2 DEFAULT GETDATE(),
+    FOREIGN KEY (UserId) REFERENCES Users(UserId),
+    FOREIGN KEY (ProductId) REFERENCES Products(ProductId)
+);
+
 ---------------------------------------- користувач для сайту
 
 CREATE LOGIN harvest_admin WITH PASSWORD = 'H@rv3stP@ss!';

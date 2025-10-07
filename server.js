@@ -3,6 +3,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const { sql, poolPromise } = require('./db');
 
+const cartController = require('./controllers/cartController');
 const authController = require('./controllers/authController');
 const productController = require('./controllers/productController');
 const orderController = require('./controllers/orderController');
@@ -28,6 +29,9 @@ app.put('/api/users/:id', authController.updateUser);
 app.delete('/api/users/:id', authController.deleteUser);
 
 // Products
+
+app.get('/api/products/search', productController.searchProducts);
+
 app.post(
   '/api/products',
   authenticateToken,
@@ -54,6 +58,10 @@ app.delete(
   productController.deleteProduct
 );
 
+//Cart
+app.post('/api/cart', authenticateToken, cartController.addToCart);
+app.get('/api/cart', authenticateToken, cartController.getCart);
+app.delete('/api/cart/:id', authenticateToken, cartController.removeFromCart);
 
 // Orders
 app.post('/api/orders', authenticateToken, orderController.createOrder);

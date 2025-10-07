@@ -1,6 +1,5 @@
 const { sql, poolPromise } = require('../db');
 
-// Створення продукту (тільки фермер)
 async function createProduct(req, res) {
   try {
     const { ProductName, Description, Price, StockQuantity, CategoryId } = req.body;
@@ -22,7 +21,6 @@ async function createProduct(req, res) {
 
     const productId = result.recordset[0].ProductId;
 
-    // якщо були картинки
     if (req.files?.images) {
       for (const file of req.files.images) {
         await pool.request()
@@ -38,7 +36,6 @@ async function createProduct(req, res) {
   }
 }
 
-// Отримати всі продукти
 async function getProducts(req, res) {
   try {
     const { search, category } = req.query;
@@ -57,7 +54,6 @@ async function getProducts(req, res) {
     const pool = await poolPromise;
     const result = await pool.request().query(query);
 
-    // додаємо картинки до кожного продукту
     for (let product of result.recordset) {
       const images = await pool.request()
         .input('ProductId', sql.Int, product.ProductId)
@@ -72,7 +68,6 @@ async function getProducts(req, res) {
   }
 }
 
-// Отримати продукт за ID
 async function getProductById(req, res) {
   try {
     const { id } = req.params;
@@ -105,7 +100,6 @@ async function getProductById(req, res) {
   }
 }
 
-// Оновити продукт
 async function updateProduct(req, res) {
   try {
     const { id } = req.params;
@@ -145,7 +139,6 @@ async function updateProduct(req, res) {
       return res.status(400).json({ message: "No fields to update" });
     }
 
-    // текстові поля
     if (updateFields.length > 0) {
       const query = `
         UPDATE Products
@@ -155,7 +148,6 @@ async function updateProduct(req, res) {
       await request.query(query);
     }
 
-    // нові картинки
     if (req.files?.images) {
       for (const file of req.files.images) {
         await pool.request()
@@ -172,7 +164,6 @@ async function updateProduct(req, res) {
   }
 }
 
-// Видалити продукт
 async function deleteProduct(req, res) {
   try {
     const { id } = req.params;
@@ -194,4 +185,24 @@ async function deleteProduct(req, res) {
   }
 }
 
-module.exports = { createProduct, getProducts, getProductById, updateProduct, deleteProduct };
+async function searchProducts(req, res) {
+  try {
+    const { q } = req.query;
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .query(`SELECT * FROM Products WHERE ProductName LIKE '%${q}%'`);
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
+module.exports = { 
+  createProduct, 
+  getProducts, 
+  getProductById, 
+  updateProduct, 
+  deleteProduct,
+  searchProducts
+};
+

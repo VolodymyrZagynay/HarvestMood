@@ -1,4 +1,3 @@
-// controllers/categoryController.js
 const { sql, poolPromise } = require('../db');
 
 async function getCategories(req, res) {

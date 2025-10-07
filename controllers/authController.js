@@ -63,9 +63,8 @@ async function login(req, res) {
   }
 }
 
-// -------------------- CRUD для користувачів --------------------
+// -------------------- CRUD --------------------
 
-// всі користувачі
 async function getUsers(req, res) {
   try {
     const pool = await poolPromise;
@@ -77,7 +76,6 @@ async function getUsers(req, res) {
   }
 }
 
-// один користувач
 async function getUserById(req, res) {
   try {
     const { id } = req.params;
@@ -96,7 +94,6 @@ async function getUserById(req, res) {
   }
 }
 
-// оновити користувача
 async function updateUser(req, res) {
   try {
     const { id } = req.params;
@@ -119,7 +116,6 @@ async function updateUser(req, res) {
   }
 }
 
-// видалити користувача
 async function deleteUser(req, res) {
   try {
     const { id } = req.params;
