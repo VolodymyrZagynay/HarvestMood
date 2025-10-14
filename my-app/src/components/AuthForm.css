@@ -1,0 +1,238 @@
+/* AuthForm.css - Fixed Full Screen Farming Theme */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.auth-container-wrapper {
+  width: 100vw;
+  height: 100vh;
+  background: 
+    linear-gradient(rgba(76, 107, 58, 0.8), rgba(56, 83, 40, 0.9)),
+    url('./img/background-1.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Arial', sans-serif;
+}
+
+.auth-container {
+  width: 100%;
+  max-width: 480px;
+  min-height: auto;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  padding: 40px 35px;
+  text-align: center;
+}
+
+.auth-container h2 {
+  color: #2d5016;
+  font-size: 2rem;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.auth-container > p {
+  color: #5a7d3e;
+  margin-bottom: 25px;
+  font-size: 1rem;
+}
+
+.auth-container form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  text-align: left;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #3a5c1e;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.auth-container input,
+.auth-container select {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid #d1e0c5;
+  border-radius: 8px;
+  font-size: 16px;
+  background: #ffffff;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  color: #2d3748; /* Dark text color for visibility */
+}
+
+.auth-container input::placeholder {
+  color: #a0aec0; /* Light gray placeholder */
+}
+
+.auth-container input:focus,
+.auth-container select:focus {
+  outline: none;
+  border-color: #5a7d3e;
+  background: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(90, 125, 62, 0.15);
+}
+
+.auth-container button {
+  background: #5a7d3e;
+  color: white;
+  padding: 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.auth-container button:hover {
+  background: #4a6b2f;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(90, 125, 62, 0.3);
+}
+
+.auth-container button:disabled {
+  background: #a8c190;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.message {
+  margin: 20px 0;
+  padding: 15px;
+  border-radius: 8px;
+  font-weight: 500;
+  text-align: center;
+  background: #f0f7e6;
+  border-left: 4px solid #5a7d3e;
+  color: #3a5c1e;
+  font-size: 0.95rem;
+}
+
+.message.error {
+  background: #f7e6e6;
+  border-left-color: #d32f2f;
+  color: #c62828;
+}
+
+.role-selection {
+  text-align: left;
+  margin-bottom: 8px;
+}
+
+.role-selection label {
+  display: block;
+  margin-bottom: 8px;
+  color: #3a5c1e;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.auth-switch {
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e8d5;
+}
+
+.auth-switch p {
+  color: #5a7d3e;
+  margin-bottom: 15px;
+  font-size: 0.95rem;
+}
+
+.auth-switch button {
+  background: transparent;
+  color: #5a7d3e;
+  border: 2px solid #5a7d3e;
+  padding: 12px 24px;
+  font-size: 14px;
+}
+
+.auth-switch button:hover {
+  background: #5a7d3e;
+  color: white;
+}
+
+.additional-info {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f0f7e6;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.additional-info p {
+  margin-bottom: 8px;
+  color: #3a5c1e;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.additional-info p:last-child {
+  margin-bottom: 0;
+}
+
+/* Remove the large emoji decoration */
+/* .auth-container::before {
+  content: "🌱";
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 15px;
+} */
+
+/* Animation for better user experience */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.auth-container {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .auth-container {
+    margin: 20px;
+    padding: 35px 25px;
+  }
+  
+  .auth-container h2 {
+    font-size: 1.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-container {
+    padding: 30px 20px;
+    margin: 15px;
+  }
+  
+  .auth-container h2 {
+    font-size: 1.6rem;
+  }
+}
