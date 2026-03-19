@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: harvest-ingress
+  namespace: harvest-mood
+  annotations:
+    # Для Docker Desktop потрібен ingress-контролер
+    # Спочатку встановіть: kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.1/deploy/static/provider/cloud/deploy.yaml
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: harvest.local  # Локальний домен
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: harvest-backend-service
+            port:
+              number: 4000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: harvest-frontend-service
+            port:
+              number: 80

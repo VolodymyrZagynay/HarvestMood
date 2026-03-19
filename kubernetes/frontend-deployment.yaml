@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: harvest-frontend
+  namespace: harvest-mood
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: harvest-frontend
+  template:
+    metadata:
+      labels:
+        app: harvest-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: bobanius/harvest-frontend:latest
+        ports:
+        - containerPort: 80
