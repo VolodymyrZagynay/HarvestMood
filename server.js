@@ -21,6 +21,57 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
+// Простий маршрут для кореня - інформація про API
+app.get('/', (req, res) => {
+  res.json({
+    name: 'Harvest Mood API',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      auth: {
+        register: 'POST /api/register',
+        login: 'POST /api/login',
+        users: 'GET /api/users'
+      },
+      products: {
+        list: 'GET /api/products',
+        search: 'GET /api/products/search?q=...',
+        create: 'POST /api/products (Farmer only)',
+        getOne: 'GET /api/products/:id',
+        update: 'PUT /api/products/:id (Farmer only)',
+        delete: 'DELETE /api/products/:id (Farmer only)',
+        myProducts: 'GET /api/my-products (Farmer only)'
+      },
+      cart: {
+        get: 'GET /api/cart',
+        add: 'POST /api/cart',
+        remove: 'DELETE /api/cart/:id'
+      },
+      orders: {
+        create: 'POST /api/orders',
+        list: 'GET /api/orders'
+      },
+      reviews: {
+        create: 'POST /api/reviews',
+        list: 'GET /api/reviews/:productId'
+      },
+      categories: {
+        list: 'GET /api/categories',
+        create: 'POST /api/categories (Farmer only)'
+      }
+    }
+  });
+});
+
+// Додайте також маршрут для перевірки здоров'я (health check)
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    database: global.dbConnected ? 'connected' : 'checking'
+  });
+});
+
 // Потім статичні файли - ДОДАЙТЕ ЦЕ ТУТ
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
