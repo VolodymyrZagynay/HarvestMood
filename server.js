@@ -1,4 +1,5 @@
 const express = require('express');
+global.dbConnected = false;
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
@@ -139,8 +140,10 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, async () => {
   try {
     const pool = await poolPromise;
+    global.dbConnected = true; 
     console.log('Connected to MSSQL');
   } catch (err) {
+    global.dbConnected = false; 
     console.error('Database connection failed:', err);
   }
   console.log(`Server running on port ${PORT}`);
