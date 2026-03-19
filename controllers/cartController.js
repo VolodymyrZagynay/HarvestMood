@@ -44,7 +44,7 @@ async function getCart(req, res) {
     const result = await pool.request()
       .input('UserId', sql.Int, userId)
       .query(`
-        SELECT c.CartItemId, p.ProductName, p.Price, c.Quantity, (p.Price * c.Quantity) AS Total
+        SELECT c.CartItemId, p.ProductId, p.ProductName, p.Price, c.Quantity, (p.Price * c.Quantity) AS Total
         FROM CartItems c
         JOIN Products p ON c.ProductId = p.ProductId
         WHERE c.UserId = @UserId

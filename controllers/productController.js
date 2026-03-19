@@ -197,12 +197,42 @@ async function searchProducts(req, res) {
   }
 }
 
+  async function getMyProducts(req, res) {
+    try {
+      const farmerId = req.user.UserId; // Отримуємо ID фермера з токена
+      const pool = await poolPromise;
+
+      const result = await pool.request()
+        .input('FarmerId', sql.Int, farmerId)
+        .query(`
+          SELECT p.ProductId, p.ProductName, p.Description, p.Price, p.StockQuantity, p.CreatedAt,
+                c.CategoryName
+          FROM Products p
+          JOIN Categories c ON p.CategoryId = c.CategoryId
+          WHERE p.FarmerId = @FarmerId
+          ORDER BY p.CreatedAt DESC
+        `);
+
+      for (let product of result.recordset) {
+        const images = await pool.request()
+          .input('ProductId', sql.Int, product.ProductId)
+          .query('SELECT ImageUrl FROM ProductImages WHERE ProductId = @ProductId');
+        product.Images = images.recordset.map(img => img.ImageUrl);
+      }
+
+      res.json(result.recordset);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  }
+
 module.exports = { 
   createProduct, 
   getProducts, 
   getProductById, 
   updateProduct, 
   deleteProduct,
-  searchProducts
+  searchProducts,
+  getMyProducts
 };
 

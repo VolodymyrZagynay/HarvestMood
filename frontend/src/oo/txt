@@ -1,0 +1,51 @@
+src/
+├── components/
+│   ├── common/
+│   │   ├── Header.jsx
+│   │   ├── Footer.jsx
+│   │   ├── Layout.jsx
+│   │   ├── ProductCard.jsx
+│   │   └── SearchBar.jsx
+│   ├── auth/
+│   │   ├── LoginForm.jsx
+│   │   └── RegisterForm.jsx
+│   ├── products/
+│   │   ├── ProductList.jsx
+│   │   ├── ProductDetail.jsx
+│   │   └── ProductForm.jsx
+│   ├── cart/
+│   │   ├── CartItem.jsx
+│   │   └── CartSummary.jsx
+│   └── orders/
+│       ├── OrderList.jsx
+│       └── OrderDetail.jsx
+├── pages/
+│   ├── Home.jsx
+│   ├── Products.jsx
+│   ├── ProductDetail.jsx
+│   ├── Cart.jsx
+│   ├── Checkout.jsx
+│   ├── Orders.jsx
+│   ├── Login.jsx
+│   ├── Register.jsx
+│   └── Dashboard/
+│       ├── FarmerDashboard.jsx
+│       └── CustomerDashboard.jsx
+├── services/
+│   ├── api.js
+│   ├── auth.js
+│   ├── products.js
+│   ├── cart.js
+│   ├── orders.js
+│   └── reviews.js
+├── context/
+│   ├── AuthContext.jsx
+│   ├── CartContext.jsx
+│   └── AppContext.jsx
+├── hooks/
+│   ├── useAuth.js
+│   ├── useCart.js
+│   └── useProducts.js
+└── utils/
+    ├── constants.js
+    └── helpers.js

@@ -1,0 +1,28 @@
+# Node modules
+node_modules/
+frontend/node_modules/
+
+# Environment files
+.env
+.env.local
+
+# Docker
+Dockerfile*
+*.yaml
+!kubernetes/*.yaml
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build outputs
+dist/
+build/
+*.vsix
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

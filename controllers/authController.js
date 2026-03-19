@@ -1,5 +1,5 @@
 const { sql, poolPromise } = require('../db');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const { generateToken } = require('../utils/auth');
 
 async function register(req, res) {
