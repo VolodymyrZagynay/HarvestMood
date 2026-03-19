@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: harvest-frontend-service
+  namespace: harvest-mood
+spec:
+  selector:
+    app: harvest-frontend
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+  type: ClusterIP

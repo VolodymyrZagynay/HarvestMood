@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: harvest-backend-config
+  namespace: harvest-mood
+data:
+  PORT: "4000"
+  DB_USER: "harvest_admin"
+  DB_SERVER: "host.docker.internal"
+  DB_NAME: "Harvest_Mood"
