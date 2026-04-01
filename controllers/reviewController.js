@@ -1,73 +1,41 @@
-const { sql, poolPromise } = require('../db');
+const { pool } = require('../db');
 
-async function createReview(req, res) {
-  try {
-    const { OrderItemId, Rating, Comment } = req.body;
-    const userId = req.user.UserId;
+const reviewController = {
+  createReview: async (req, res) => {
+    try {
+      const { product_id, rating, comment } = req.body;
+      const user_id = req.user.id;
 
-    const pool = await poolPromise;
-
-    const orderItem = await pool.request()
-      .input('OrderItemId', sql.Int, OrderItemId)
-      .query(`
-        SELECT oi.OrderItemId, o.CustomerId, oi.ProductId
-        FROM OrderItems oi
-        JOIN Orders o ON oi.OrderId = o.OrderId
-        WHERE oi.OrderItemId = @OrderItemId
-      `);
-
-    if (orderItem.recordset.length === 0) {
-      return res.status(400).json({ message: "Invalid OrderItemId" });
+      const result = await pool.query(
+        `INSERT INTO reviews (user_id, product_id, rating, comment)
+         VALUES ($1, $2, $3, $4) RETURNING *`,
+        [user_id, product_id, rating, comment]
+      );
+      
+      res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error('Error creating review:', error);
+      res.status(500).json({ error: 'Failed to create review' });
     }
+  },
 
-    const item = orderItem.recordset[0];
-
-    if (item.CustomerId !== userId) {
-      return res.status(403).json({ message: "You can review only your own purchases" });
+  getReviews: async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const result = await pool.query(`
+        SELECT r.*, u.name as user_name
+        FROM reviews r
+        JOIN users u ON r.user_id = u.id
+        WHERE r.product_id = $1
+        ORDER BY r.created_at DESC
+      `, [productId]);
+      
+      res.json(result.rows);
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+      res.status(500).json({ error: 'Failed to fetch reviews' });
     }
-
-    const existing = await pool.request()
-      .input('OrderItemId', sql.Int, OrderItemId)
-      .query(`SELECT * FROM Reviews WHERE OrderItemId = @OrderItemId`);
-
-    if (existing.recordset.length > 0) {
-      return res.status(400).json({ message: "Review already exists for this item" });
-    }
-
-    await pool.request()
-      .input('OrderItemId', sql.Int, OrderItemId)
-      .input('Rating', sql.Int, Rating)
-      .input('Comment', sql.NVarChar, Comment || null)
-      .query(`INSERT INTO Reviews (OrderItemId, Rating, Comment) VALUES (@OrderItemId, @Rating, @Comment)`);
-
-    res.json({ message: "Review created successfully" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
   }
-}
+};
 
-async function getReviews(req, res) {
-  try {
-    const { productId } = req.params;
-    const pool = await poolPromise;
-
-    const result = await pool.request()
-      .input('ProductId', sql.Int, productId)
-      .query(`
-        SELECT r.ReviewId, r.Rating, r.Comment, r.CreatedAt, u.UserName
-        FROM Reviews r
-        JOIN OrderItems oi ON r.OrderItemId = oi.OrderItemId
-        JOIN Orders o ON oi.OrderId = o.OrderId
-        JOIN Users u ON o.CustomerId = u.UserId
-        WHERE oi.ProductId = @ProductId
-      `);
-
-    res.json(result.recordset);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
-  }
-}
-
-module.exports = { createReview, getReviews };
+module.exports = reviewController;

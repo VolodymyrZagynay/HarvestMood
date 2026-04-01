@@ -1,238 +1,132 @@
-const { sql, poolPromise } = require('../db');
+const { pool } = require('../db');
 
-async function createProduct(req, res) {
-  try {
-    const { ProductName, Description, Price, StockQuantity, CategoryId } = req.body;
-    const farmerId = req.user.UserId;
-
-    const pool = await poolPromise;
-    const result = await pool.request()
-      .input('FarmerId', sql.Int, farmerId)
-      .input('CategoryId', sql.Int, CategoryId)
-      .input('ProductName', sql.NVarChar, ProductName)
-      .input('Description', sql.NVarChar, Description)
-      .input('Price', sql.Decimal(10, 2), Price)
-      .input('StockQuantity', sql.Int, StockQuantity)
-      .query(`
-        INSERT INTO Products (FarmerId, CategoryId, ProductName, Description, Price, StockQuantity)
-        OUTPUT INSERTED.ProductId
-        VALUES (@FarmerId, @CategoryId, @ProductName, @Description, @Price, @StockQuantity)
-      `);
-
-    const productId = result.recordset[0].ProductId;
-
-    if (req.files?.images) {
-      for (const file of req.files.images) {
-        await pool.request()
-          .input('ProductId', sql.Int, productId)
-          .input('ImageUrl', sql.NVarChar, '/uploads/' + file.filename)
-          .query('INSERT INTO ProductImages (ProductId, ImageUrl) VALUES (@ProductId, @ImageUrl)');
-      }
-    }
-
-    res.json({ message: 'Product created successfully', productId });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-}
-
-async function getProducts(req, res) {
-  try {
-    const { search, category } = req.query;
-    let query = `
-      SELECT p.ProductId, p.ProductName, p.Description, p.Price, p.StockQuantity, p.CreatedAt,
-             u.UserName AS FarmerName, c.CategoryName
-      FROM Products p
-      JOIN Users u ON p.FarmerId = u.UserId
-      JOIN Categories c ON p.CategoryId = c.CategoryId
-      WHERE 1=1
-    `;
-
-    if (search) query += ` AND p.ProductName LIKE '%${search}%' `;
-    if (category) query += ` AND c.CategoryName = '${category}' `;
-
-    const pool = await poolPromise;
-    const result = await pool.request().query(query);
-
-    for (let product of result.recordset) {
-      const images = await pool.request()
-        .input('ProductId', sql.Int, product.ProductId)
-        .query('SELECT ImageUrl FROM ProductImages WHERE ProductId = @ProductId');
-
-      product.Images = images.recordset.map(img => img.ImageUrl);
-    }
-
-    res.json(result.recordset);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-}
-
-async function getProductById(req, res) {
-  try {
-    const { id } = req.params;
-    const pool = await poolPromise;
-
-    const product = await pool.request()
-      .input('ProductId', sql.Int, id)
-      .query(`
-        SELECT p.*, u.UserName AS FarmerName, c.CategoryName
-        FROM Products p
-        JOIN Users u ON p.FarmerId = u.UserId
-        JOIN Categories c ON p.CategoryId = c.CategoryId
-        WHERE p.ProductId = @ProductId
-      `);
-
-    if (product.recordset.length === 0) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-
-    const images = await pool.request()
-      .input('ProductId', sql.Int, id)
-      .query('SELECT ImageUrl FROM ProductImages WHERE ProductId = @ProductId');
-
-    const fullProduct = product.recordset[0];
-    fullProduct.Images = images.recordset.map(img => img.ImageUrl);
-
-    res.json(fullProduct);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-}
-
-async function updateProduct(req, res) {
-  try {
-    const { id } = req.params;
-    const farmerId = req.user.UserId;
-
-    const { ProductName, Description, Price, StockQuantity, CategoryId } = req.body;
-
-    const pool = await poolPromise;
-    let updateFields = [];
-    let request = pool.request();
-
-    request.input('ProductId', sql.Int, id);
-    request.input('FarmerId', sql.Int, farmerId);
-
-    if (ProductName) {
-      updateFields.push("ProductName = @ProductName");
-      request.input('ProductName', sql.NVarChar, ProductName);
-    }
-    if (Description) {
-      updateFields.push("Description = @Description");
-      request.input('Description', sql.NVarChar, Description);
-    }
-    if (Price) {
-      updateFields.push("Price = @Price");
-      request.input('Price', sql.Decimal(10,2), parseFloat(Price));
-    }
-    if (StockQuantity) {
-      updateFields.push("StockQuantity = @StockQuantity");
-      request.input('StockQuantity', sql.Int, parseInt(StockQuantity));
-    }
-    if (CategoryId) {
-      updateFields.push("CategoryId = @CategoryId");
-      request.input('CategoryId', sql.Int, parseInt(CategoryId));
-    }
-
-    if (updateFields.length === 0 && !req.files?.images) {
-      return res.status(400).json({ message: "No fields to update" });
-    }
-
-    if (updateFields.length > 0) {
-      const query = `
-        UPDATE Products
-        SET ${updateFields.join(", ")}
-        WHERE ProductId = @ProductId AND FarmerId = @FarmerId
-      `;
-      await request.query(query);
-    }
-
-    if (req.files?.images) {
-      for (const file of req.files.images) {
-        await pool.request()
-          .input('ProductId', sql.Int, id)
-          .input('ImageUrl', sql.NVarChar, '/uploads/' + file.filename)
-          .query('INSERT INTO ProductImages (ProductId, ImageUrl) VALUES (@ProductId, @ImageUrl)');
-      }
-    }
-
-    res.json({ message: 'Product updated successfully' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
-  }
-}
-
-async function deleteProduct(req, res) {
-  try {
-    const { id } = req.params;
-    const farmerId = req.user.UserId;
-
-    const pool = await poolPromise;
-    const result = await pool.request()
-      .input('ProductId', sql.Int, id)
-      .input('FarmerId', sql.Int, farmerId)
-      .query('DELETE FROM Products WHERE ProductId = @ProductId AND FarmerId = @FarmerId');
-
-    if (result.rowsAffected[0] === 0) {
-      return res.status(403).json({ message: 'You can only delete your own products' });
-    }
-
-    res.json({ message: 'Product deleted successfully' });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-}
-
-async function searchProducts(req, res) {
-  try {
-    const { q } = req.query;
-    const pool = await poolPromise;
-    const result = await pool.request()
-      .query(`SELECT * FROM Products WHERE ProductName LIKE '%${q}%'`);
-    res.json(result.recordset);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-}
-
-  async function getMyProducts(req, res) {
+const productController = {
+  getProducts: async (req, res) => {
     try {
-      const farmerId = req.user.UserId; // Отримуємо ID фермера з токена
-      const pool = await poolPromise;
+      const result = await pool.query(`
+        SELECT p.*, u.name as farmer_name, c.name as category_name
+        FROM products p
+        LEFT JOIN users u ON p.farmer_id = u.id
+        LEFT JOIN categories c ON p.category_id = c.id
+        ORDER BY p.created_at DESC
+      `);
+      res.json(result.rows);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ error: 'Failed to fetch products' });
+    }
+  },
 
-      const result = await pool.request()
-        .input('FarmerId', sql.Int, farmerId)
-        .query(`
-          SELECT p.ProductId, p.ProductName, p.Description, p.Price, p.StockQuantity, p.CreatedAt,
-                c.CategoryName
-          FROM Products p
-          JOIN Categories c ON p.CategoryId = c.CategoryId
-          WHERE p.FarmerId = @FarmerId
-          ORDER BY p.CreatedAt DESC
-        `);
-
-      for (let product of result.recordset) {
-        const images = await pool.request()
-          .input('ProductId', sql.Int, product.ProductId)
-          .query('SELECT ImageUrl FROM ProductImages WHERE ProductId = @ProductId');
-        product.Images = images.recordset.map(img => img.ImageUrl);
+  getProductById: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await pool.query(`
+        SELECT p.*, u.name as farmer_name, c.name as category_name
+        FROM products p
+        LEFT JOIN users u ON p.farmer_id = u.id
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE p.id = $1
+      `, [id]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Product not found' });
       }
+      res.json(result.rows[0]);
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      res.status(500).json({ error: 'Failed to fetch product' });
+    }
+  },
 
-      res.json(result.recordset);
-    } catch (err) {
-      res.status(500).json({ message: err.message });
+  createProduct: async (req, res) => {
+    try {
+      const { name, description, price, unit, stock, category_id } = req.body;
+      const farmer_id = req.user.id;
+      const image_url = req.file ? `/uploads/${req.file.filename}` : null;
+
+      const result = await pool.query(
+        `INSERT INTO products (farmer_id, category_id, name, description, price, unit, stock, image_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING *`,
+        [farmer_id, category_id, name, description, price, unit, stock, image_url]
+      );
+      
+      res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error('Error creating product:', error);
+      res.status(500).json({ error: 'Failed to create product' });
+    }
+  },
+
+  updateProduct: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, description, price, unit, stock, category_id } = req.body;
+      
+      const result = await pool.query(
+        `UPDATE products 
+         SET name = $1, description = $2, price = $3, unit = $4, stock = $5, category_id = $6
+         WHERE id = $7 AND farmer_id = $8
+         RETURNING *`,
+        [name, description, price, unit, stock, category_id, id, req.user.id]
+      );
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Product not found or unauthorized' });
+      }
+      res.json(result.rows[0]);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      res.status(500).json({ error: 'Failed to update product' });
+    }
+  },
+
+  deleteProduct: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await pool.query(
+        'DELETE FROM products WHERE id = $1 AND farmer_id = $2 RETURNING id',
+        [id, req.user.id]
+      );
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Product not found or unauthorized' });
+      }
+      res.json({ message: 'Product deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      res.status(500).json({ error: 'Failed to delete product' });
+    }
+  },
+
+  searchProducts: async (req, res) => {
+    try {
+      const { q } = req.query;
+      const result = await pool.query(
+        `SELECT * FROM products 
+         WHERE name ILIKE $1 OR description ILIKE $1
+         ORDER BY created_at DESC`,
+        [`%${q}%`]
+      );
+      res.json(result.rows);
+    } catch (error) {
+      console.error('Error searching products:', error);
+      res.status(500).json({ error: 'Failed to search products' });
+    }
+  },
+
+  getMyProducts: async (req, res) => {
+    try {
+      const result = await pool.query(
+        'SELECT * FROM products WHERE farmer_id = $1 ORDER BY created_at DESC',
+        [req.user.id]
+      );
+      res.json(result.rows);
+    } catch (error) {
+      console.error('Error fetching my products:', error);
+      res.status(500).json({ error: 'Failed to fetch my products' });
     }
   }
-
-module.exports = { 
-  createProduct, 
-  getProducts, 
-  getProductById, 
-  updateProduct, 
-  deleteProduct,
-  searchProducts,
-  getMyProducts
 };
 
+module.exports = productController;

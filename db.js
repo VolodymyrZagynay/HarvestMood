@@ -1,19 +1,22 @@
-const sql = require('mssql');
+const { Pool } = require('pg');
 
-const config = {
-  user: process.env.DB_USER || 'harvest_admin',
-  password: process.env.DB_PASSWORD || 'H@rv3stP@ss!',
-  server: process.env.DB_SERVER || 'localhost',
-  database: process.env.DB_NAME || 'Harvest_Mood',
-  options: {
-    encrypt: false,
-    trustServerCertificate: true
+// Перевіряємо, чи ми в продакшені
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Налаштування підключення
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/harvest_mood',
+  ssl: isProduction ? { rejectUnauthorized: false } : false
+});
+
+// Перевірка підключення
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('❌ Database connection failed:', err.stack);
+  } else {
+    console.log('✅ Connected to PostgreSQL database');
+    release();
   }
-};
+});
 
-const poolPromise = new sql.ConnectionPool(config)
-  .connect()
-  .then(pool => pool)
-  .catch(err => console.log('Database connection failed:', err));
-
-module.exports = { sql, poolPromise };
+module.exports = { pool };

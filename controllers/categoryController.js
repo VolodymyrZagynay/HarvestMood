@@ -1,30 +1,29 @@
-const { sql, poolPromise } = require('../db');
+const { pool } = require('../db');
 
-async function getCategories(req, res) {
-  try {
-    const pool = await poolPromise;
-    const result = await pool.request().query('SELECT * FROM Categories');
-    res.json(result.recordset);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
+const categoryController = {
+  getCategories: async (req, res) => {
+    try {
+      const result = await pool.query('SELECT * FROM categories ORDER BY name');
+      res.json(result.rows);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      res.status(500).json({ error: 'Failed to fetch categories' });
+    }
+  },
+
+  createCategory: async (req, res) => {
+    try {
+      const { name, description } = req.body;
+      const result = await pool.query(
+        'INSERT INTO categories (name, description) VALUES ($1, $2) RETURNING *',
+        [name, description]
+      );
+      res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error('Error creating category:', error);
+      res.status(500).json({ error: 'Failed to create category' });
+    }
   }
-}
+};
 
-async function createCategory(req, res) {
-  try {
-    const { CategoryName } = req.body;
-    const pool = await poolPromise;
-
-    await pool.request()
-      .input('CategoryName', sql.NVarChar, CategoryName)
-      .query('INSERT INTO Categories (CategoryName) VALUES (@CategoryName)');
-
-    res.json({ message: 'Category created successfully' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
-  }
-}
-
-module.exports = { getCategories, createCategory };
+module.exports = categoryController;

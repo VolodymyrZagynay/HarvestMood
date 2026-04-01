@@ -1,9 +1,9 @@
 const express = require('express');
-global.dbConnected = false;
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
-const { sql, poolPromise } = require('./db');
+const fs = require('fs');
+const { pool } = require('./db');
 
 const cartController = require('./controllers/cartController');
 const authController = require('./controllers/authController');
@@ -18,17 +18,21 @@ const { upload } = require('./middlewares/uploadMiddleware');
 
 const app = express();
 
-// Спершу базові middleware
+// Middleware
 app.use(cors());
 app.use(bodyParser.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Простий маршрут для кореня - інформація про API
+// Кореневий маршрут API
 app.get('/', (req, res) => {
   res.json({
     name: 'Harvest Mood API',
     version: '1.0.0',
     status: 'running',
+    environment: process.env.NODE_ENV || 'development',
     endpoints: {
+      docs: 'GET /api/docs',
+      health: 'GET /health',
       auth: {
         register: 'POST /api/register',
         login: 'POST /api/login',
@@ -64,19 +68,26 @@ app.get('/', (req, res) => {
   });
 });
 
-// Додайте також маршрут для перевірки здоров'я (health check)
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    database: global.dbConnected ? 'connected' : 'checking'
-  });
+// Health check
+app.get('/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.status(200).json({
+      status: 'OK',
+      database: 'connected',
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: 'ERROR',
+      database: 'disconnected',
+      error: err.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
-// Потім статичні файли - ДОДАЙТЕ ЦЕ ТУТ
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// Далі всі ваші API маршрути (залишаємо без змін)
+// API маршрути
 app.post('/api/register', authController.register);
 app.post('/api/login', authController.login);
 
@@ -136,15 +147,27 @@ app.get('/api/reviews/:productId', reviewController.getReviews);
 app.get('/api/categories', categoryController.getCategories);
 app.post('/api/categories', authenticateToken, authorizeRole('Farmer'), categoryController.createCategory);
 
+// Віддача статичних файлів фронтенду (тільки в продакшені)
+const frontendPath = path.join(__dirname, 'frontend', 'dist');
+if (process.env.NODE_ENV === 'production' && fs.existsSync(frontendPath)) {
+  console.log('📁 Serving frontend from:', frontendPath);
+  app.use(express.static(frontendPath));
+  
+  // Всі інші маршрути відправляємо на фронтенд
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+      next();
+    } else {
+      res.sendFile(path.join(frontendPath, 'index.html'));
+    }
+  });
+}
+
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, async () => {
-  try {
-    const pool = await poolPromise;
-    global.dbConnected = true; 
-    console.log('Connected to MSSQL');
-  } catch (err) {
-    global.dbConnected = false; 
-    console.error('Database connection failed:', err);
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`📡 API: https://localhost:${PORT}/api`);
+  if (process.env.NODE_ENV === 'production') {
+    console.log(`🌐 Frontend: https://localhost:${PORT}`);
   }
-  console.log(`Server running on port ${PORT}`);
 });

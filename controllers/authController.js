@@ -1,138 +1,146 @@
-const { sql, poolPromise } = require('../db');
 const bcrypt = require('bcryptjs');
-const { generateToken } = require('../utils/auth');
+const jwt = require('jsonwebtoken');
+const { pool } = require('../db');
 
-async function register(req, res) {
-  try {
-    const { UserName, Email, Password, Role } = req.body;
-
-    if (!Password) {
-      return res.status(400).json({ message: "Password is required" });
+const authController = {
+  register: async (req, res) => {
+    try {
+      const { name, email, password, phone, address, role } = req.body;
+      
+      // Перевірка чи користувач існує
+      const userExists = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+      if (userExists.rows.length > 0) {
+        return res.status(400).json({ error: 'User already exists' });
+      }
+      
+      // Хешування пароля
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
+      // Створення користувача
+      const result = await pool.query(
+        `INSERT INTO users (name, email, password, phone, address, role)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, name, email, role, phone, address, created_at`,
+        [name, email, hashedPassword, phone, address, role || 'Customer']
+      );
+      
+      res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error('Registration error:', error);
+      res.status(500).json({ error: 'Registration failed' });
     }
-
-    const pool = await poolPromise;
-
-    const check = await pool.request()
-      .input('Email', sql.NVarChar, Email)
-      .query('SELECT * FROM Users WHERE Email = @Email');
-
-    if (check.recordset.length > 0) {
-      return res.status(400).json({ message: 'Email already registered' });
+  },
+  
+  login: async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      // Пошук користувача
+      const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+      if (result.rows.length === 0) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+      
+      const user = result.rows[0];
+      
+      // Перевірка пароля
+      const validPassword = await bcrypt.compare(password, user.password);
+      if (!validPassword) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+      
+      // Створення токена
+      const token = jwt.sign(
+        { id: user.id, email: user.email, role: user.role },
+        process.env.JWT_SECRET || 'your-secret-key-change-this',
+        { expiresIn: '7d' }
+      );
+      
+      res.json({
+        token,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          phone: user.phone,
+          address: user.address
+        }
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ error: 'Login failed' });
     }
-
-    const hashed = await bcrypt.hash(Password, 10);
-
-    await pool.request()
-      .input('UserName', sql.NVarChar, UserName)
-      .input('Email', sql.NVarChar, Email)
-      .input('PasswordHash', sql.NVarChar, hashed)
-      .input('Role', sql.NVarChar, Role)
-      .query('INSERT INTO Users (UserName, Email, PasswordHash, Role) VALUES (@UserName, @Email, @PasswordHash, @Role)');
-
-    res.json({ message: 'User registered successfully' });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+  },
+  
+  getUsers: async (req, res) => {
+    try {
+      const result = await pool.query(
+        'SELECT id, name, email, role, phone, address, created_at FROM users ORDER BY id'
+      );
+      res.json(result.rows);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      res.status(500).json({ error: 'Failed to fetch users' });
+    }
+  },
+  
+  getUserById: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await pool.query(
+        'SELECT id, name, email, role, phone, address, created_at FROM users WHERE id = $1',
+        [id]
+      );
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      res.json(result.rows[0]);
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      res.status(500).json({ error: 'Failed to fetch user' });
+    }
+  },
+  
+  updateUser: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, phone, address } = req.body;
+      
+      const result = await pool.query(
+        `UPDATE users SET name = $1, phone = $2, address = $3 WHERE id = $4
+         RETURNING id, name, email, role, phone, address`,
+        [name, phone, address, id]
+      );
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      res.json(result.rows[0]);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      res.status(500).json({ error: 'Failed to update user' });
+    }
+  },
+  
+  deleteUser: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      res.status(500).json({ error: 'Failed to delete user' });
+    }
   }
-}
+};
 
-async function login(req, res) {
-  try {
-    const { Email, Password } = req.body;
-
-    if (!Password) {
-      return res.status(400).json({ message: "Password is required" });
-    }
-
-    const pool = await poolPromise;
-    const result = await pool.request()
-      .input('Email', sql.NVarChar, Email)
-      .query('SELECT * FROM Users WHERE Email = @Email');
-
-    if (result.recordset.length === 0) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    const user = result.recordset[0];
-    const match = await bcrypt.compare(Password, user.PasswordHash);
-    if (!match) return res.status(400).json({ message: 'Invalid credentials' });
-
-    const token = generateToken(user);
-    res.json({ token, user });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-}
-
-// -------------------- CRUD --------------------
-
-async function getUsers(req, res) {
-  try {
-    const pool = await poolPromise;
-    const result = await pool.request()
-      .query('SELECT UserId, UserName, Email, Role, CreatedAt FROM Users');
-    res.json(result.recordset);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-}
-
-async function getUserById(req, res) {
-  try {
-    const { id } = req.params;
-    const pool = await poolPromise;
-    const result = await pool.request()
-      .input('UserId', sql.Int, id)
-      .query('SELECT UserId, UserName, Email, Role, CreatedAt FROM Users WHERE UserId = @UserId');
-
-    if (result.recordset.length === 0) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    res.json(result.recordset[0]);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-}
-
-async function updateUser(req, res) {
-  try {
-    const { id } = req.params;
-    const { UserName, Role } = req.body;
-    const pool = await poolPromise;
-
-    const result = await pool.request()
-      .input('UserId', sql.Int, id)
-      .input('UserName', sql.NVarChar, UserName)
-      .input('Role', sql.NVarChar, Role)
-      .query('UPDATE Users SET UserName = @UserName, Role = @Role WHERE UserId = @UserId');
-
-    if (result.rowsAffected[0] === 0) {
-      return res.status(404).json({ message: 'User not found or nothing to update' });
-    }
-
-    res.json({ message: 'User updated successfully' });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-}
-
-async function deleteUser(req, res) {
-  try {
-    const { id } = req.params;
-    const pool = await poolPromise;
-
-    const result = await pool.request()
-      .input('UserId', sql.Int, id)
-      .query('DELETE FROM Users WHERE UserId = @UserId');
-
-    if (result.rowsAffected[0] === 0) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    res.json({ message: 'User deleted successfully' });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-}
-
-module.exports = { register, login, getUsers, getUserById, updateUser, deleteUser };
+module.exports = authController;
